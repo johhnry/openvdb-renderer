@@ -4,11 +4,12 @@ cmake_minimum_required(VERSION 3.12)
 project(openvdb-renderer VERSION 1.0)
 
 # specify the C++ standard
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Export compile commands
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 
 ###############################################################
 # PACKAGES
@@ -40,16 +41,33 @@ find_package(OpenVDB REQUIRED)
 
 set(SOURCES
   src/main.cpp
+
+  src/app/Application.cpp
+  src/app/ApplicationWindow.cpp
+
+  src/geometry/FullScreenVAO.cpp
+
+  src/log/Log.cpp
+
+  src/shader/FragmentShader.cpp
+  src/shader/IShader.cpp
+  src/shader/Program.cpp
+  src/shader/VertexShader.cpp
+
+  src/vdb/VDBFile.cpp
 )
 
 ###############################################################
 # EXECUTABLE
 ###############################################################
 
-include_directories(${PROJECT_SOURCE_DIR})
+include_directories(${PROJECT_SOURCE_DIR} src)
 
 # add the executable
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
+
+# Warning level
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
 
 target_link_libraries(
   ${CMAKE_PROJECT_NAME}
