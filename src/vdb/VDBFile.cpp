@@ -1,11 +1,14 @@
+#include <string>
+#include <vector>
+
+#include "GL/glew.h"
 #include <imgui/imgui.h>
+#include <openvdb/math/Coord.h>
 #include <openvdb/openvdb.h>
 
 #include "VDBFile.hpp"
+#include "geometry/CubeGeometry.hpp"
 #include "log/Log.hpp"
-#include <string>
-#include <vector>
-#include <iostream>
 
 std::string getGridType(openvdb::GridBase::Ptr grid)
 {
@@ -48,27 +51,6 @@ VDBFile::VDBFile(std::string filename)
     std::string gridName = nameIter.gridName();
     openvdb::GridBase::Ptr baseGrid = file->readGrid(gridName);
 
-    openvdb::FloatGrid::Ptr grid =
-        openvdb::gridPtrCast<openvdb::FloatGrid>(baseGrid);
-
-    using GridType = openvdb::FloatGrid;
-    // Iterate over all active values but don't allow them to be changed.
-    for (GridType::ValueOnCIter iter = grid->cbeginValueOn(); iter.test();
-         ++iter) {
-      // openvdb::Vec3f value = (openvdb::Vec3f) iter.getValue();
-
-      // Print the coordinates of all voxels whose vector value has
-      // a length greater than 10, and print the bounding box coordinates
-      // of all tiles whose vector value length is greater than 10.
-      if (iter.isVoxelValue()) {
-        std::cout << iter.getCoord() << std::endl;
-      } else {
-        openvdb::CoordBBox bbox;
-        iter.getBoundingBox(bbox);
-        std::cout << bbox << std::endl;
-      }
-    }
-
     gridNames.push_back(gridName + " (" + getGridType(baseGrid) + ")");
     grids.push_back(baseGrid);
 
@@ -103,6 +85,42 @@ void VDBFile::displayMetaData(int gridIndex)
     }
 
     ImGui::EndTable();
+  }
+}
+
+void VDBFile::constructPointCloud(int gridIndex) {
+  // Remove previous cubes
+  cubes.clear();
+
+  using GridType = openvdb::FloatGrid;
+  GridType::Ptr grid =
+      openvdb::gridPtrCast<openvdb::FloatGrid>(grids.at(gridIndex));
+
+  int nbVoxels = 0;
+  int nbPut = 0;
+  for (GridType::ValueOnCIter iter = grid->cbeginValueOn(); iter.test();
+       ++iter) {
+    if (iter.isVoxelValue() && nbVoxels % 100 == 0) {
+      openvdb::math::Coord pt = iter.getCoord();
+
+      IGeometry *cube =
+          new CubeGeometry(pt.x() / 100.0, pt.y() / 100.0, pt.z() / 100.0, 1.0);
+      cubes.emplace_back(std::unique_ptr<IGeometry>(cube));
+
+      nbPut++;
+    }
+
+    nbVoxels++;
+  }
+
+  Log::success("Created " + std::to_string(nbPut) + " cubes!");
+}
+
+void VDBFile::draw(Program &displayProgram, float scale) {
+  // Draw cubes
+  for (size_t i = 0; i < cubes.size(); i++) {
+    cubes.at(i)->setScale(scale);
+    cubes.at(i)->draw(displayProgram);
   }
 }
 

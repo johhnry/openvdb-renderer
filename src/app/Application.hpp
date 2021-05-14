@@ -1,11 +1,18 @@
 #ifndef OPENVDB_RENDERER_SRC_APP_APPLICATION_HPP_
 #define OPENVDB_RENDERER_SRC_APP_APPLICATION_HPP_
 
-#include <openvdb/openvdb.h>
-#include <imgui/imfilebrowser.h>
-#include <vdb/VDBFile.hpp>
+#include <string>
 
+#include <GL/glew.h>
+#include <imgui/imfilebrowser.h>
+#include <openvdb/openvdb.h>
+
+#include "vdb/VDBFile.hpp"
 #include "app/ApplicationWindow.hpp"
+
+#include "geometry/IGeometry.hpp"
+#include "scene/Camera.hpp"
+#include "scene/Light.hpp"
 
 class Application
 {
@@ -32,9 +39,26 @@ public:
   void loop();
   int run(int argc, char *argv[]);
   void displayGUI();
+  void drawObjects();
+
+  void loadVDBFile(std::string filename);
 
 private:
   ApplicationWindow window;
+
+  // UI options
+  bool isWireframe = false;
+  bool turnAnimation = true;
+  float voxelSize = 0.1;
+  float camCenterX = 0.0;
+  float camCenterY = 0.0;
+  float camCenterZ = 0.0;
+  float angleOfView = 45;
+  float turnAngle = 0;
+  float distance = 5.0;
+
+  Camera camera;
+  Light light;
 
   // GUI
   ImGui::FileBrowser vdbFileDialog;

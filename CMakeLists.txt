@@ -31,6 +31,10 @@ include_directories(${OPENGL_INCLUDE_DIRS})
 find_package(GLEW REQUIRED)
 include_directories(${GLEW_INCLUDE_DIRS})
 
+# glm
+find_package(glm REQUIRED)
+include_directories(${GLM_INCLUDE_DIRS})
+
 # OpenVDB
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/src/ext/openvdb/cmake")
 find_package(OpenVDB REQUIRED)
@@ -42,10 +46,16 @@ find_package(OpenVDB REQUIRED)
 set(SOURCES
   src/main.cpp
 
+  src/scene/Camera.cpp
+  src/scene/Light.cpp
+
   src/app/Application.cpp
   src/app/ApplicationWindow.cpp
 
   src/geometry/FullScreenVAO.cpp
+  src/geometry/VAO.cpp
+  src/geometry/IGeometry.cpp
+  src/geometry/CubeGeometry.cpp
 
   src/log/Log.cpp
 
@@ -53,6 +63,7 @@ set(SOURCES
   src/shader/IShader.cpp
   src/shader/Program.cpp
   src/shader/VertexShader.cpp
+  src/shader/Material.cpp
 
   src/vdb/VDBFile.cpp
 )
@@ -67,7 +78,7 @@ include_directories(${PROJECT_SOURCE_DIR} src)
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
 
 # Warning level
-target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)# -Werror)
 
 target_link_libraries(
   ${CMAKE_PROJECT_NAME}

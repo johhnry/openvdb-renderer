@@ -4,6 +4,7 @@
 #include <string>
 
 #include "log/Log.hpp"
+#include <glm/gtc/type_ptr.hpp>
 
 #include "Program.hpp"
 
@@ -37,6 +38,13 @@ void Program::endUse() const
   glUseProgram(0);
 }
 
+void Program::useLight(const Light &light) {
+  setVec3("light.position", light.position);
+  setVec3("light.ambient", light.ambient);
+  setVec3("light.diffuse", light.diffuse);
+  setVec3("light.specular", light.specular);
+}
+
 std::string Program::withProgramId(std::string msg) const
 {
   std::ostringstream stream;
@@ -56,6 +64,15 @@ void Program::setInt(const std::string &name, int value) const
 void Program::setVec3(const char *name, float x, float y, float z) const
 {
   glUniform3f(glGetUniformLocation(id, name), x, y, z);
+}
+
+void Program::setVec3(const char *name, glm::vec3 vec) const {
+  setVec3(name, vec.x, vec.y, vec.z);
+}
+
+void Program::setMat4(const char *name, glm::mat4 matrix) const {
+  glUniformMatrix4fv(glGetUniformLocation(id, name), 1, GL_FALSE,
+                     glm::value_ptr(matrix));
 }
 
 void Program::attachShader(const IShader &shader)

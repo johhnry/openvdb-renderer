@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <glm/trigonometric.hpp>
 #include <iostream>
 #include <math.h>
 #include <memory>
@@ -31,9 +32,9 @@
 #include "Application.hpp"
 #include <vector>
 
-
-Application::Application() : window()
-{
+Application::Application()
+    : window(), camera(glm::vec3(10.f, 10.f, 10.f)),
+      light(glm::vec3(200.f, 200.f, -200.f)) {
   // Configure file dialog
   vdbFileDialog.SetTitle("Choose OpenVDB file");
   vdbFileDialog.SetTypeFilters({".vdb"});
@@ -127,6 +128,13 @@ bool VectorOfStringGetter(void *data, int n, const char **out_text) {
   return true;
 }
 
+void Application::loadVDBFile(std::string filename)
+{
+  // Open VDB file
+  vdbFile = std::make_unique<VDBFile>(filename);
+  vdbFile->constructPointCloud(currentGridIndex);
+}
+
 void Application::displayGUI()
 {
   // Create frames
@@ -157,15 +165,36 @@ void Application::displayGUI()
     }
   }
 
-  vdbFileDialog.Display();
+  if (ImGui::CollapsingHeader("Display options", ImGuiTreeNodeFlags_DefaultOpen)) {
+    ImGui::Checkbox("Wireframe", &isWireframe);
+    ImGui::Checkbox("Turn animation", &turnAnimation);
+
+    ImGui::Separator();
+
+    ImGui::SliderFloat("Voxel size", &voxelSize, 0.0f, 0.5f);
+
+    ImGui::Separator();
+
+    ImGui::SliderFloat("Cam center X", &camCenterX, -10.0, 10.0);
+    ImGui::SliderFloat("Cam center Y", &camCenterY, -10.0, 10.0);
+    ImGui::SliderFloat("Cam center Z", &camCenterZ, -10.0, 10.0);
+
+    ImGui::Separator();
+
+    ImGui::SliderFloat("Angle of view", &angleOfView, 0.0, 360.0);
+    ImGui::SliderFloat("Distance from center", &distance, 0.0, 50.0);
+    ImGui::SliderFloat("Rotation", &turnAngle, 0.0, 360.0);
+  }
+
+    vdbFileDialog.Display();
 
   // File dialog selection
   if (vdbFileDialog.HasSelected()) {
     std::string filename = vdbFileDialog.GetSelected().string();
     Log::info("Selected filename : " + filename);
 
-    // Open VDB file
-    vdbFile = std::make_unique<VDBFile>(filename);
+    // Load VDB file and construct geometry
+    loadVDBFile(filename);
 
     vdbFileDialog.ClearSelected();
   }
@@ -194,14 +223,12 @@ int Application::run(int argc, char **argv)
     return EXIT_FAILURE;
   }
 
-  // Create VAO
-  FullScreenVAO fullScreenVAO;
   Program displayProgram;
 
   try {
     // Vertex shader and fragment shader
-    VertexShader vertexShader("../src/glsl/vertex.glsl");
-    FragmentShader fragmentShader("../src/glsl/fragment.glsl");
+    VertexShader vertexShader("../src/glsl/defaultShader.vert");
+    FragmentShader fragmentShader("../src/glsl/defaultShader.frag");
 
     vertexShader.compile();
     fragmentShader.compile();
@@ -221,24 +248,61 @@ int Application::run(int argc, char **argv)
   while (!glfwWindowShouldClose(window.getGLFWwindow())) {
     // GLFW events and clear window
     glfwPollEvents();
+    glClearColor(0, 0, 0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Display shader
-    displayProgram.beginUse();
-    fullScreenVAO.bind();
+    if (isWireframe) {
+      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    } else {
+      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
 
-    fullScreenVAO.draw();
+    double time = glfwGetTime() / 2.0;
 
-    fullScreenVAO.unbind();
-    displayProgram.endUse();
+    // Move camera
+    camera.lookAt = glm::vec3(camCenterX, camCenterY, camCenterZ);
+    float radius = distance * std::cos(glm::radians(angleOfView));
+    float h = distance * std::sin(glm::radians(angleOfView));
 
-    // Display GUI
-    displayGUI();
+    float angle = turnAnimation ? time : glm::radians(turnAngle);
+    camera.position = glm::vec3(std::cos(angle) * radius, h, std::sin(angle) * radius);
+
+    // If vdb file, display it
+    if (vdbFile) {
+      displayProgram.beginUse();
+
+      displayProgram.useLight(light);
+      displayProgram.setVec3("viewPos", camera.getPosition());
+
+      // Set material properties
+      displayProgram.setVec3("material.ambient", glm::vec3(1.0f));
+      displayProgram.setVec3("material.diffuse", glm::vec3(0.1f, 0.4f, 1.0f));
+      displayProgram.setVec3("material.specular", 1.0f, 1.0f, 1.0f);
+      displayProgram.setFloat("material.shininess", 32.f);
+
+      // Compute view matrices
+      glm::mat4 projection = glm::perspective(
+          glm::radians(camera.getFOV()),
+          float(window.getWidth()) / float(window.getHeight()), 0.1f, 100.0f);
+      glm::mat4 view = camera.getViewMatrix();
+
+      displayProgram.setMat4("projection", projection);
+      displayProgram.setMat4("view", view);
+
+      // Display vdb
+      vdbFile->draw(displayProgram, voxelSize);
+
+      displayProgram.endUse();
+    }
+
 
     if (previousGridIndex != currentGridIndex) {
       Log::info("Changed previous index " + std::to_string(currentGridIndex));
       previousGridIndex = currentGridIndex;
     }
+
+    // Display GUI
+    displayGUI();
 
     // Swap buffers
     glfwSwapBuffers(window.getGLFWwindow());

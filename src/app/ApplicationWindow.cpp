@@ -36,6 +36,7 @@ void ApplicationWindow::initialize(const std::string title, const uint32_t width
   }
 
   glfwMakeContextCurrent(window);
+  glViewport(0, 0, width, height);
 
   // Set glfw window callbacks
   glfwSetFramebufferSizeCallback(window, ApplicationWindow::framebufferSizeCallback);
